@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <title>بيور ميديكال</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Cairo', sans-serif;
+      margin: 0; padding: 0;
+      background-size: cover;
+      background-position: center;
+      background-attachment: fixed;
+      transition: background-image 1s ease-in-out;
+      color: #fff;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      padding: 1rem 2rem;
+      background: rgba(0, 0, 0, 0.6);
+      font-size: 1.2rem;
+      font-weight: bold;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+    }
+    .center { text-align: center; padding: 3rem; animation: fadeIn 1s ease; }
+    .section {
+      display: none;
+      padding: 2rem;
+      background: rgba(0, 0, 0, 0.6);
+      margin: 2rem auto;
+      border-radius: 15px;
+      width: 90%;
+      max-width: 700px;
+      animation: fadeIn 0.8s ease;
+    }
+    input, select {
+      width: 100%; padding: 10px;
+      margin: 10px 0;
+      border-radius: 8px;
+      border: none;
+      font-size: 1rem;
+    }
+    .btn {
+      background-color: #28a745;
+      color: white;
+      padding: 10px 15px;
+      border: none;
+      font-size: 1rem;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-top: 10px;
+      transition: background 0.3s ease;
+    }
+    .btn:hover { background-color: #218838; }
+    .btn-danger { background-color: #dc3545; }
+    .btn-warning { background-color: #ffc107; color: black; }
+    table {
+      width: 100%; margin-top: 1rem;
+      border-collapse: collapse;
+      background-color: rgba(255,255,255,0.1);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    table, th, td { border: 1px solid #fff; }
+    th, td { padding: 10px; text-align: center; }
+    .float-end { float: left; }
+    .alert-bar {
+      background-color: yellow;
+      color: red;
+      font-weight: bold;
+      padding: 10px;
+      text-align: center;
+    }
+    marquee {
+      font-size: 1.1rem;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body onload="loadAll()">
+  <header>
+    <div>تم تصميم هذا الموقع لمتابعة اخر تحديث ل اسعار الدواء داخل مصر</div>
+  </header>
+
+  <div class="center" id="startPage">
+    <h1></h1><h1></h1><h1></h1>
+    <button class="btn" onclick="showSection('adminLogin')">دخول المسؤول</button>
+    <button class="btn btn-warning" onclick="showSection('clientLogin')">دخول العميل</button>
+  </div>
+
+  <div class="section" id="adminLogin">
+    <h2>تسجيل دخول المسؤول</h2>
+    <input type="password" id="adminPass" placeholder="كلمة المرور" onkeypress="handleEnter(event, adminLogin)">
+    <button class="btn" onclick="adminLogin()">دخول</button>
+  </div>
+
+  <div class="section" id="clientLogin">
+    <h2>تسجيل دخول العميل</h2>
+    <input type="text" id="clientPhone" placeholder="رقم الهاتف">
+    <input type="password" id="clientPass" placeholder="كلمة المرور" onkeypress="handleEnter(event, clientLogin)">
+    <button class="btn" onclick="clientLogin()">دخول</button>
+  </div>
+
+  <div class="section" id="adminPanel">
+    <h2>لوحة تحكم المسؤول</h2>
+    <button class="btn float-end" onclick="logout()">تسجيل الخروج</button>
+    <button class="btn btn-warning" onclick="showSection('passManager')">كلمات سر العملاء</button>
+    <input type="text" id="medName" placeholder="اسم الدواء">
+    <input type="text" id="medPrice" placeholder="السعر">
+    <button class="btn" onclick="addMedicine()">إضافة</button>
+    <table id="medTable"><tr><th>الدواء</th><th>السعر</th><th>حذف</th></tr></table>
+  </div>
+
+  <div class="section" id="passManager">
+    <h2>إدارة كلمات سر العملاء</h2>
+    <div id="warningBar" class="alert-bar" style="display:none;"></div>
+    <button class="btn float-end" onclick="showSection('adminPanel')">🔙 رجوع</button>
+    <input type="text" id="newPhone" placeholder="رقم الهاتف">
+    <button class="btn" onclick="generatePassword()">توليد كلمة مرور</button>
+    <table id="passTable">
+      <tr><th>رقم الهاتف</th><th>كلمة المرور</th><th>ينتهي في</th><th>تعديل</th><th>حذف</th></tr>
+    </table>
+  </div>
+
+  <div class="section" id="clientPage">
+    <h2>مرحبًا بك عزيزي العميل</h2>
+    <button class="btn float-end" onclick="logout()">تسجيل الخروج</button>
+    <table id="clientTable">
+      <tr><th>الدواء</th><th>السعر</th></tr>
+    </table>
+  </div>
+
+  <script>
+    let medicines = [];
+    let passwords = {};
+    const ADMIN_PASSWORD = "121314ahmed";
+    const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
+
+    const backgrounds = [
+      'https://images.unsplash.com/photo-1506748686214-e9df14d4d9d0',
+      'https://images.unsplash.com/photo-1470770841072-f978cf4d019e',
+      'https://images.unsplash.com/photo-1506744038136-46273834b3fb'
+    ];
+
+    window.addEventListener('storage', (event) => {
+      if (event.key === 'meds') {
+        medicines = JSON.parse(event.newValue || '[]');
+        renderClientMedicines();
+      }
+    });
+
+    function setRandomBackground() {
+      const img = backgrounds[Math.floor(Math.random() * backgrounds.length)];
+      document.body.style.backgroundImage = `url('${img}?auto=format&fit=crop&w=1500&q=80')`;
+    }
+
+    function handleEnter(e, callback) {
+      if (e.key === "Enter") callback();
+    }
+
+    function showSection(id) {
+      document.querySelectorAll('.section, .center').forEach(e => e.style.display = 'none');
+      document.getElementById(id).style.display = 'block';
+      if (id === 'passManager') renderWarnings();
+      setRandomBackground();
+    }
+
+    function adminLogin() {
+      const pass = document.getElementById("adminPass").value;
+      if (pass === ADMIN_PASSWORD) {
+        showSection("adminPanel");
+        renderMedicines();
+      } else {
+        alert("كلمة مرور خاطئة");
+      }
+    }
+
+    function clientLogin() {
+      const phone = document.getElementById("clientPhone").value;
+      const pass = document.getElementById("clientPass").value;
+      const info = passwords[phone];
+      const now = Date.now();
+      if (info && info.pass === pass && now < info.expires) {
+        showSection("clientPage");
+        renderClientMedicines();
+      } else {
+        alert("بيانات غير صحيحة أو انتهت صلاحية كلمة المرور");
+      }
+    }
+
+    function logout() {
+      showSection("startPage");
+    }
+
+    function addMedicine() {
+      const name = document.getElementById("medName").value;
+      const price = document.getElementById("medPrice").value;
+      if (name && price) {
+        medicines.push({ name, price });
+        saveData();
+        renderMedicines();
+        renderClientMedicines();
+      }
+    }
+
+    function deleteMedicine(index) {
+      if (confirm("هل تريد حذف هذا الدواء؟")) {
+        medicines.splice(index, 1);
+        saveData();
+        renderMedicines();
+        renderClientMedicines();
+      }
+    }
+
+    function generatePassword() {
+      const phone = document.getElementById("newPhone").value;
+      const pass = Math.random().toString(36).substring(2, 8);
+      if (phone) {
+        passwords[phone] = {
+          pass,
+          expires: Date.now() + ONE_YEAR_MS
+        };
+        savePasswords();
+        renderPasswords();
+        renderWarnings();
+        alert("تم إنشاء كلمة المرور: " + pass);
+      }
+    }
+
+    function editPassword(phone) {
+      const newPass = prompt("أدخل كلمة المرور الجديدة:", passwords[phone].pass);
+      if (newPass) {
+        const newPhone = prompt("أدخل رقم الهاتف الجديد:", phone) || phone;
+        const updated = {
+          pass: newPass,
+          expires: Date.now() + ONE_YEAR_MS
+        };
+        delete passwords[phone];
+        passwords[newPhone] = updated;
+        savePasswords();
+        renderPasswords();
+        renderWarnings();
+      }
+    }
+
+    function deletePassword(phone) {
+      if (confirm("هل تريد حذف كلمة السر؟")) {
+        delete passwords[phone];
+        savePasswords();
+        renderPasswords();
+        renderWarnings();
+      }
+    }
+
+    function renderMedicines() {
+      const tbl = document.getElementById("medTable");
+      tbl.innerHTML = "<tr><th>الدواء</th><th>السعر</th><th>حذف</th></tr>";
+      medicines.forEach((m, i) => {
+        tbl.innerHTML += `<tr><td>${m.name}</td><td>${m.price}</td><td><button class="btn btn-danger" onclick="deleteMedicine(${i})">حذف</button></td></tr>`;
+      });
+    }
+
+    function renderClientMedicines() {
+      const tbl = document.getElementById("clientTable");
+      tbl.innerHTML = "<tr><th>الدواء</th><th>السعر</th></tr>";
+      medicines.forEach(m => {
+        tbl.innerHTML += `<tr><td>${m.name}</td><td>${m.price}</td></tr>`;
+      });
+    }
+
+    function renderPasswords() {
+      const tbl = document.getElementById("passTable");
+      tbl.innerHTML = "<tr><th>رقم الهاتف</th><th>كلمة المرور</th><th>ينتهي في</th><th>تعديل</th><th>حذف</th></tr>";
+      for (let phone in passwords) {
+        const info = passwords[phone];
+        const expired = Date.now() > info.expires;
+        const expiryDate = new Date(info.expires).toLocaleDateString();
+        tbl.innerHTML += `<tr style="color:${expired ? '#bbb' : '#fff'}">
+          <td>${phone}</td><td>${info.pass}</td><td>${expiryDate}</td>
+          <td><button class="btn btn-warning" onclick="editPassword('${phone}')">تعديل</button></td>
+          <td><button class="btn btn-danger" onclick="deletePassword('${phone}')">حذف</button></td></tr>`;
+      }
+    }
+
+    function renderWarnings() {
+      const now = Date.now();
+      const warningBar = document.getElementById("warningBar");
+      let list = [];
+      for (let phone in passwords) {
+        const exp = passwords[phone].expires;
+        if (exp - now <= 30 * 24 * 60 * 60 * 1000 && now < exp) {
+          list.push(`⚠️ ${phone}`);
+        }
+      }
+      if (list.length) {
+        warningBar.innerHTML = `<marquee>⚠️ أرقام ستنتهي قريبًا: ${list.join(" - ")}</marquee>`;
+        warningBar.style.display = "block";
+      } else {
+        warningBar.style.display = "none";
+      }
+    }
+
+    function saveData() {
+      localStorage.setItem("meds", JSON.stringify(medicines));
+    }
+
+    function savePasswords() {
+      localStorage.setItem("passes", JSON.stringify(passwords));
+    }
+
+    function loadAll() {
+      const m = localStorage.getItem("meds");
+      const p = localStorage.getItem("passes");
+      if (m) medicines = JSON.parse(m);
+      if (p) passwords = JSON.parse(p);
+      setRandomBackground();
+    }
+  </script>
+</body>
+</html>
